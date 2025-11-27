@@ -5,8 +5,8 @@ import os
 CAM_INDEX = 1  # índice de tu iVCam
 
 # ==== AJUSTA ESTOS NOMBRES ANTES DE EJECUTAR ====
-NOMBRE_VALOR = "A"        # "A", "2", "3", ..., "K"
-NOMBRE_PALO  = "corazones"    # "picas", "corazones", "trebol", "diamantes"
+NOMBRE_VALOR = "9"           # "A", "2", ..., "K"
+NOMBRE_PALO  = "trebol"   # "picas", "corazones", "trebol", "diamantes"
 # =================================================
 
 
@@ -55,16 +55,43 @@ def extraer_carta_normalizada(frame, contorno, ancho=200, alto=300):
         rect = cv2.minAreaRect(contorno)
         box = cv2.boxPoints(rect)
         esquinas = ordenar_esquinas(box)
-    dst = np.array([[0, 0], [ancho - 1, 0], [ancho - 1, alto - 1], [0, alto - 1]], dtype="float32")
+    dst = np.array([[0, 0], [ancho - 1, 0],
+                    [ancho - 1, alto - 1], [0, alto - 1]], dtype="float32")
     M = cv2.getPerspectiveTransform(esquinas, dst)
     return cv2.warpPerspective(frame, M, (ancho, alto))
 
 
-def extraer_valor_y_palo(carta):
-    h, w = carta.shape[:2]
-    corner = carta[0:int(0.40 * h), 0:int(0.45 * w)]
+def orientar_carta(carta_norm):
+    h, w = carta_norm.shape[:2]
+    gray = cv2.cvtColor(carta_norm, cv2.COLOR_BGR2GRAY)
+    _, thresh = cv2.threshold(gray, 0, 255,
+                              cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    corner_h = int(0.40 * h)
+    corner_w = int(0.45 * w)
+    corners = [
+        thresh[0:corner_h, 0:corner_w],
+        thresh[0:corner_h, w - corner_w:w],
+        thresh[h - corner_h:h, 0:corner_w],
+        thresh[h - corner_h:h, w - corner_w:w]
+    ]
+    scores = [cv2.countNonZero(c) for c in corners]
+    idx = int(np.argmax(scores))
+    if idx == 0:
+        return carta_norm
+    elif idx == 1:
+        return cv2.rotate(carta_norm, cv2.ROTATE_90_COUNTERCLOCKWISE)
+    elif idx == 2:
+        return cv2.rotate(carta_norm, cv2.ROTATE_180)
+    else:
+        return cv2.rotate(carta_norm, cv2.ROTATE_90_CLOCKWISE)
+
+
+def extraer_valor_y_palo(carta_orientada):
+    h, w = carta_orientada.shape[:2]
+    corner = carta_orientada[0:int(0.40 * h), 0:int(0.45 * w)]
     gray = cv2.cvtColor(corner, cv2.COLOR_BGR2GRAY)
-    _, binaria = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    _, binaria = cv2.threshold(gray, 0, 255,
+                               cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
     ch, cw = binaria.shape
     corte = int(ch * 0.55)
     valor = binaria[0:corte, :]
@@ -74,11 +101,8 @@ def extraer_valor_y_palo(carta):
 
 def main():
     print("Directorio de trabajo actual:", os.getcwd())
-
-    # Asegurarnos de que las carpetas existen
     os.makedirs("plantillas/valor", exist_ok=True)
     os.makedirs("plantillas/palo", exist_ok=True)
-    print("Carpetas de plantillas preparadas.")
 
     cap = cv2.VideoCapture(CAM_INDEX, cv2.CAP_DSHOW)
 
@@ -91,24 +115,21 @@ def main():
         mask = segmentar_tapete_verde(frame)
         contornos = encontrar_contornos_cartas(mask)
 
+        valor_t = palo_t = None
+
         if contornos:
             carta_norm = extraer_carta_normalizada(frame, contornos[0])
-            valor, palo = extraer_valor_y_palo(carta_norm)
+            carta_orientada = orientar_carta(carta_norm)
+            valor, palo = extraer_valor_y_palo(carta_orientada)
 
             valor_t = cv2.resize(valor, (60, 80))
             palo_t  = cv2.resize(palo,  (60, 60))
 
-            cv2.imshow("Carta normalizada", carta_norm)
+            cv2.imshow("Carta orientada", carta_orientada)
             cv2.imshow("Valor plantilla", valor_t)
             cv2.imshow("Palo plantilla", palo_t)
-        else:
-            valor_t = None
-            palo_t = None
 
         key = cv2.waitKey(1) & 0xFF
-
-        if key != 255:  # alguna tecla
-            print("Tecla pulsada:", chr(key) if key < 128 else key)
 
         if key == ord('q'):
             break

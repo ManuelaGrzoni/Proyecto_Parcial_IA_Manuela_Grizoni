@@ -8,9 +8,9 @@ CAM_INDEX = 1
 def recortar_bordes_negros(frame):
     h, w = frame.shape[:2]
 
-    # Recorte más agresivo: 25% arriba y 25% abajo
-    top = int(h * 0.25)
-    bottom = int(h * 0.75)
+    # Igual que en step2, 3, 4 y 5: 20% arriba y 20% abajo
+    top = int(h * 0.20)
+    bottom = int(h * 0.80)
 
     return frame[top:bottom, :]
 
