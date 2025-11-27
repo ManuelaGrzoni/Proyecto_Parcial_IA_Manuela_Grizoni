@@ -56,4 +56,41 @@
 - Aplicación de matchTemplate
 - Selección del mayor score (> 0.30)
 ---
-# Solución 
+# 4. Solución 
+![Diagrama de Desición](Documentación/DiagramaDeDeciciónIA.svg)
+---
+# Secuencialización 
+## Recorte de bordes 
+- Para eliminar sombras o bordes introducidos por IVCam
+
+## Segmentación HSV
+- Se elige HSV porque separa mejor el color, incluso con variación de luz 
+    - H: tono → detecta verde
+    - S: saturación → evita identificar zonas grisáceas
+    - V: brillo 
+
+## Morfología
+- OPEN elimina el ruido de puntos blancos 
+- CLOSE elimina huecos dentro de las cartas 
+
+## Contornos 
+- Los contornos detectan als cartas como regiones blancas no-verdes 
+
+## Orientación automática 
+- Se detecta qué esquina tiene más píxeles blancos después del umbralizado
+
+## Threshold OTSU
+- Hace la binarización automática según la iluminación del entorno 
+
+## ROI número y palo
+- ROI calculado como proporción de la carta normalizada: 
+    - Valor: parte superior del ROI 
+    - Palo: parte inferior 
+---
+# 6. Otras tareas 
+- Creación manual del dataset de números con bolígrafo negro para mejorar OCR
+- Ajuste iterativo del ROI para adaptarlo a distintas cartas físicas
+- Inclusión de “reconocimiento de símbolo de palo por contornos”
+- Correcciones de orientación dependiendo del lugar donde aparece el valor
+- Implementación de detección robusta incluso si hay inclinación o rotación
+- Organización del proyecto en pasos (step1–step5) para facilitar depuración
